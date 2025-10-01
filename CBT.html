@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>CBT Ujian Sekolah</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .box {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      padding: 30px;
+      width: 30%;
+      max-width: 800px;
+      animation: fadeIn 1s ease;
+    }
+    .center { text-align: center; }
+    .logo {
+      display: block;
+      margin: 0 auto 15px auto;
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+    }
+    h1,h2 { color: #333; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    button {
+      background: #4e73df;
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      margin: 10px 5px 0 0;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #2e59d9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .card {
+      background: #f9f9f9;
+      border-radius: 15px;
+      padding: 15px;
+      margin: 15px 0;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .timer {
+      font-weight: bold;
+      color: #e74a3b;
+      background: #ffe6e6;
+      padding: 8px 15px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-bottom: 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    table th { background: #f4f6f9; }
+    .hidden { display: none; }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(30px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <!-- Login Section -->
+    <div id="login">
+      <img src="file:///C:/Users/LAURA%20dan%20ADZRIEL/Downloads/logo%20smk%20rajasa.png" 
+           alt="Logo Sekolah" class="logo">
+      <h2 class="center">Login Peserta Ujian Informatika</h2>
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="loginPeserta()">Login</button>
+      <div class="footer">©2025 CBTSekolah</div>
+  </div>
+    </div>
+
+    <!-- Exam Section -->
+    <div id="exam" class="hidden">
+      <h2>Soal Ujian</h2>
+      <div class="timer">Waktu: <span id="time">00:00</span></div>
+      <form id="examForm"></form>
+      <button onclick="submitExam()">Kumpulkan Jawaban</button>
+    </div>
+
+    <!-- Result Section -->
+    <div id="result" class="hidden">
+      <h2>Hasil Ujian</h2>
+      <p id="hasilText"></p>
+      <button onclick="downloadCSV()">Download Hasil (CSV)</button>
+      <button onclick="finishAndSave()">Simpan ke Rekap</button>
+    </div>
+
+    <!-- Rekap Section -->
+    <div id="rekap" class="hidden">
+      <h2>Rekap Semua Peserta</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Peserta</th>
+            <th>Total Soal</th>
+            <th>Benar</th>
+            <th>Salah</th>
+            <th>Waktu Sisa</th>
+          </tr>
+        </thead>
+        <tbody id="rekapTable"></tbody>
+      </table>
+      <button onclick="downloadRekapCSV()">Download Rekap (CSV)</button>
+      <button onclick="backToLogin()">Tambah Peserta Baru</button>
+    </div>
+  </div>
+
+<script>
+// === DATA AWAL ===
+let akunPeserta = [
+  { username: "andi", password: "123", nama: "Andi" },
+  { username: "budi", password: "456", nama: "Budi" },
+  { username: "citra", password: "789", nama: "Citra" }
+];
+
+let soal = [
+  { pertanyaan: "Ibukota Indonesia adalah?", pilihan: ["Jakarta", "Bandung", "Surabaya", "Medan"], jawaban: 0 },
+  { pertanyaan: "2 + 2 = ?", pilihan: ["3", "4", "5", "6"], jawaban: 1 },
+  { pertanyaan: "Gunung tertinggi di Indonesia adalah?", pilihan: ["Semeru", "Kerinci", "Puncak Jaya", "Rinjani"], jawaban: 2 }
+];
+
+let timer;
+let timeLeft = 60;
+let peserta = "";
+let hasilUjian = {};
+let semuaHasil = [];
+
+// === LOGIN ===
+function loginPeserta() {
+  let user = document.getElementById("username").value;
+  let pass = document.getElementById("password").value;
+  let akun = akunPeserta.find(a => a.username === user && a.password === pass);
+
+  if (!akun) {
+    alert("⚠️ Username atau password salah!");
+    return;
+  }
+  peserta = akun.nama;
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("exam").classList.remove("hidden");
+  renderSoal();
+  startTimer();
+}
+
+// === RENDER SOAL ===
+function renderSoal() {
+  let form = document.getElementById("examForm");
+  form.innerHTML = "";
+  soal.forEach((s, index) => {
+    let div = document.createElement("div");
+    div.classList.add("card");
+    div.innerHTML = `<p><b>${index+1}. ${s.pertanyaan}</b></p>` + 
+      s.pilihan.map((p,i) => 
+        `<label><input type="radio" name="q${index}" value="${i}"> ${p}</label><br>`).join("");
+    form.appendChild(div);
+  });
+}
+
+// === SUBMIT UJIAN ===
+function submitExam() {
+  clearInterval(timer);
+  let benar = 0;
+  soal.forEach((s,index)=>{
+    let jawaban = document.querySelector(`input[name="q${index}"]:checked`);
+    if (jawaban && parseInt(jawaban.value) === s.jawaban) benar++;
+  });
+  hasilUjian = {
+    peserta: peserta,
+    totalSoal: soal.length,
+    benar: benar,
+    salah: soal.length - benar,
+    waktuSisa: timeLeft
+  };
+  document.getElementById("hasilText").innerHTML = `
+    <b>Peserta:</b> ${peserta}<br>
+    <b>Skor:</b> ${benar} / ${soal.length}<br>
+    <b>Salah:</b> ${soal.length - benar}<br>
+    <b>Waktu tersisa:</b> ${timeLeft} detik
+  `;
+  document.getElementById("exam").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+}
+
+// === TIMER ===
+function startTimer() {
+  let display = document.getElementById("time");
+  timer = setInterval(()=>{
+    let menit = Math.floor(timeLeft/60);
+    let detik = timeLeft%60;
+    display.textContent = `${menit}:${detik<10?'0'+detik:detik}`;
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      alert("⏰ Waktu habis! Jawaban otomatis dikumpulkan.");
+      submitExam();
+    }
+    timeLeft--;
+  },1000);
+}
+
+// === DOWNLOAD HASIL PER PESERTA ===
+function downloadCSV() {
+  let csv = "Peserta,Total Soal,Benar,Salah,Waktu Sisa\n";
+  csv += `${hasilUjian.peserta},${hasilUjian.totalSoal},${hasilUjian.benar},${hasilUjian.salah},${hasilUjian.waktuSisa}\n`;
+  let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "hasil_ujian.csv";
+  link.click();
+}
+
+// === SIMPAN KE REKAP ===
+function finishAndSave() {
+  semuaHasil.push(hasilUjian);
+  renderRekap();
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("rekap").classList.remove("hidden");
+}
+function renderRekap() {
+  let tbody = document.getElementById("rekapTable");
+  tbody.innerHTML = "";
+  semuaHasil.forEach(h=>{
+    tbody.innerHTML += `<tr>
+      <td>${h.peserta}</td><td>${h.totalSoal}</td>
+      <td>${h.benar}</td><td>${h.salah}</td><td>${h.waktuSisa}</td>
+    </tr>`;
+  });
+}
+function downloadRekapCSV() {
+  let csv = "Peserta,Total Soal,Benar,Salah,Waktu Sisa\n";
+  semuaHasil.forEach(h=>{
+    csv += `${h.peserta},${h.totalSoal},${h.benar},${h.salah},${h.waktuSisa}\n`;
+  });
+  let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "rekap_semua_peserta.csv";
+  link.click();
+}
+function backToLogin() {
+  document.getElementById("rekap").classList.add("hidden");
+  document.getElementById("login").classList.remove("hidden");
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+  timeLeft = 60;
+}
+</script>
+</body>
+</html>
